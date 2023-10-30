@@ -78,7 +78,6 @@ def main(database_file):
             database_file = service.files().create(body=db_file_metadata, media_body=db_media, fields='id').execute()
         else:
             database_file = service.files().update(fileId=database_file_id, body=db_file_metadata, media_body=db_media, fields='id').execute()
-            
         # Try uploading log file
         config.logging.info("Uploading logs...")
         if is_new_upload_log:

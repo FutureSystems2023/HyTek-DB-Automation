@@ -4,15 +4,30 @@ import modifyDB
 import os
 import shutil
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 import uploadDB
 
 
 try:
     # Create a Tkinter GUI window for selecting the destination directory
     app = tk.Tk()
+    # app.withdraw()  # Hide the main window
     config.logging.info("Program Start")
-    app.withdraw()  # Hide the main window
+    app.geometry('300x120')
+    app.title('HyTek Database Modifier')
+    app.grid()
+
+    # Tkinter progressbar to show loading to users
+    pb = ttk.Progressbar(
+        app,
+        orient='horizontal',
+        mode='indeterminate',
+        length=280
+    )
+    pb.grid(column=0, row=0, columnspan=2, padx=10, pady=20)
+    value_label = ttk.Label(app, text="Program starting...")
+    value_label.grid(column=0, row=1, columnspan=2)
+    pb.start()
 except Exception as e:
     config.logging.error("Unable to start program")
     exit()
@@ -53,6 +68,8 @@ except Exception as e:
 try:
     # Database Operations
     config.logging.info("Commencing database operations...")
+    value_label["text"] = "Commencing database operations..."
+    app.update()
     password = config.config["DEFAULT"]["DB_PASS"]
     ath_table_name = "Athlete"
     column_to_remove = "ID_NO"
@@ -68,6 +85,8 @@ try:
 
     # Upload Operations
     config.logging.info("Commencing upload to Google Drive using Drive API...")
+    value_label["text"] = "Uploading to Google Drive using Drive API..."
+    app.update()
     upload_operations = uploadDB.main(destination_database_file)
     # Show a pop-up message indicating successful completion. Else, dsiplay error.
     if upload_operations["status"] == True:
