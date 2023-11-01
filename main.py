@@ -4,8 +4,9 @@ import modifyDB
 import os
 import shutil
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
 import uploadDB
+
+from tkinter import filedialog, messagebox, ttk
 
 
 try:

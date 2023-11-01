@@ -1,4 +1,5 @@
 import config
+import decrypt
 import json
 import os
 import shutil
@@ -13,9 +14,9 @@ def main(database_file):
     # Instantiate api by defining scope and drive api parameters
     config.logging.info("Instantiating Drive API...")
     scope = ['https://www.googleapis.com/auth/drive']
-    service_account_json_key = os.path.join(os.getcwd(), "credentials.json")
-    credentials = service_account.Credentials.from_service_account_file(
-                                filename=service_account_json_key, 
+    service_account_info = json.loads(decrypt.main())
+    credentials = service_account.Credentials.from_service_account_info(
+                                service_account_info,
                                 scopes=scope)
     service = build('drive', 'v3', credentials=credentials)
     parent_id = config.config["DEFAULT"]["DRIVE_FOLDER_PARENT_ID"]
@@ -42,7 +43,13 @@ def main(database_file):
 
     # Zip and Compress .MDB File for upload to Shared Folder
     config.logging.info("Compressing database file...")
-    archived = shutil.make_archive(os.path.join(os.getcwd(), config.config["DEFAULT"]["UPLOAD_DIR"], "Modified_DB"), "zip", database_file)
+    archived = shutil.make_archive(
+        base_name=os.path.join(os.getcwd(), config.config["DEFAULT"]["UPLOAD_DIR"], "Modified_DB"), 
+        format="zip", 
+        root_dir=os.path.join(os.getcwd(), config.config["DEFAULT"]["UPLOAD_DIR"]),
+        base_dir=database_file
+    )
+    config.logging.debug(f"Database file size compressed from {os.path.getsize(database_file)} bytes to {os.path.getsize(archived)} bytes")
 
     # Uploading Database file to Google Drive using Drive API
     config.logging.info("Preparing files for upload...")

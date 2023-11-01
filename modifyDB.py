@@ -2,6 +2,7 @@ import config
 import os
 import pyodbc
 
+
 def main(destination_database_file, password, ath_table_name, column_to_remove, ath_info_table_name, stroke_id_mapping):
     try:
         # Establish a connection to the Access database
