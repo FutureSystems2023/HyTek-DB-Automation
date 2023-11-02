@@ -9,8 +9,19 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
+from tkinter import Widget
 
-def main(database_file):
+
+def main(db_file, app_progress_label):
+    """Initialize Drive API by first decrypting encrypted credentials. After initialization, Upload DB file and log file.
+
+    Args:
+        db_file (str): Filepath of database file to be uploaded
+        app_progress_label (object): Tkinter label widget to show the progress of operations.
+
+    Returns:
+        dict: Dictionary object that defines status of upload and file IDs of uploaded files
+    """
     # Instantiate api by defining scope and drive api parameters
     config.logging.info("Instantiating Drive API...")
     scope = ['https://www.googleapis.com/auth/drive']
@@ -35,7 +46,7 @@ def main(database_file):
         if item.get("name") == "Modified_DB.zip":
             config.logging.debug(f"Database file (ID: {item.get('id')}) already exists, performing an update operation...")
             is_new_upload_db = False
-            database_file_id = item.get("id")  # Get database file id to do an update operation
+            db_file_id = item.get("id")  # Get database file id to do an update operation
         elif item.get("name") == "debug.log":
             config.logging.debug(f"Log file (ID: {item.get('id')}) already exists, performing an update operation...")
             is_new_upload_log = False
@@ -47,9 +58,9 @@ def main(database_file):
         base_name=os.path.join(os.getcwd(), config.config["DEFAULT"]["UPLOAD_DIR"], "Modified_DB"), 
         format="zip", 
         root_dir=os.path.join(os.getcwd(), config.config["DEFAULT"]["UPLOAD_DIR"]),
-        base_dir=database_file
+        base_dir=db_file
     )
-    config.logging.debug(f"Database file size compressed from {os.path.getsize(database_file)} bytes to {os.path.getsize(archived)} bytes")
+    config.logging.debug(f"Database file size compressed from {os.path.getsize(db_file)} bytes to {os.path.getsize(archived)} bytes")
 
     # Uploading Database file to Google Drive using Drive API
     config.logging.info("Preparing files for upload...")
@@ -64,7 +75,7 @@ def main(database_file):
             'name': 'Modified_DB.zip',
             'mimeType': 'application/zip',
         }
-    db_media = MediaFileUpload(archived, chunksize=5 * 1024 * 1024, mimetype='application/octet-stream', resumable=True)
+    db_media = MediaFileUpload(archived, chunksize=1 * 1024 * 1024, mimetype='application/octet-stream', resumable=True)
     if is_new_upload_log:
         log_file_metadata = {
             'name': 'debug.log',
@@ -77,23 +88,39 @@ def main(database_file):
             'mimeType': 'application/text',
         }
     log_file_path = os.path.join(os.getcwd(), config.config["DEFAULT"]["LOG_FILE"])
-    log_media = MediaFileUpload(log_file_path, chunksize=5 * 1024 * 1024, mimetype='application/octet-stream', resumable=True)
+    log_media = MediaFileUpload(log_file_path, chunksize=1 * 1024 * 1024, mimetype='application/octet-stream', resumable=True)
     try:
         # Try uploading database file
         config.logging.info("Uploading database...")
+        app_progress_label["text"] = "Uploading database..."
         if is_new_upload_db:
-            database_file = service.files().create(body=db_file_metadata, media_body=db_media, fields='id').execute()
+            db_file = service.files().create(body=db_file_metadata, media_body=db_media, fields='id')
         else:
-            database_file = service.files().update(fileId=database_file_id, body=db_file_metadata, media_body=db_media, fields='id').execute()
+            db_file = service.files().update(fileId=db_file_id, body=db_file_metadata, media_body=db_media, fields='id')
+        response = None
+        while response is None:
+            app_progress_label.master.update()
+            status, response = db_file.next_chunk()
+            if status:
+                app_progress_label["text"] = "Uploading database (%d%%)..." % int(status.progress() * 100)
+        uploaded_db_file_id = response["id"]
         # Try uploading log file
         config.logging.info("Uploading logs...")
+        app_progress_label["text"] = "Uploading logs..."
         if is_new_upload_log:
-            log_file = service.files().create(body=log_file_metadata, media_body=log_media, fields='id').execute()
+            log_file = service.files().create(body=log_file_metadata, media_body=log_media, fields='id')
         else:
-            log_file = service.files().update(fileId=log_file_id, body=log_file_metadata, media_body=log_media, fields='id').execute()
+            log_file = service.files().update(fileId=log_file_id, body=log_file_metadata, media_body=log_media, fields='id')
+        response = None
+        while response is None:
+            app_progress_label.master.update()
+            status, response = log_file.next_chunk()
+            if status:
+                app_progress_label["text"] = "Uploading logs (%d%%)..." % int(status.progress() * 100)
+        uploaded_log_file_id = response["id"]
         # Log successful completion
-        config.logging.info(f"Upload completed successfully! (database_file_id: {database_file.get('id')}, log_file_id, {log_file.get('id')})")
-        return {"status": True, "database_file_id": database_file.get("id"), "log_file_id": log_file.get("id")}
+        config.logging.info(f"Upload completed successfully! (db_file_id: {uploaded_db_file_id}, log_file_id, {uploaded_log_file_id})")
+        return {"status": True, "db_file_id": uploaded_db_file_id, "log_file_id": uploaded_log_file_id}
     except HttpError as e:
         if e.resp.get('content-type', '').startswith('application/json'):
             reason = json.loads(e.content).get('error').get('errors')[0].get('reason')
