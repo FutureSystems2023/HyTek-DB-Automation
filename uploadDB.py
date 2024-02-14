@@ -12,12 +12,12 @@ from googleapiclient.http import MediaFileUpload
 from tkinter import Widget
 
 
-def main(db_file, app_progress_label):
+def main(db_file, app_progress_label=None):
     """Initialize Drive API by first decrypting encrypted credentials. After initialization, Upload DB file and log file.
 
     Args:
         db_file (str): Filepath of database file to be uploaded
-        app_progress_label (object): Tkinter label widget to show the progress of operations.
+        app_progress_label (object, optional): Tkinter label widget to show the progress of operations.
 
     Returns:
         dict: Dictionary object that defines status of upload and file IDs of uploaded files
@@ -56,9 +56,9 @@ def main(db_file, app_progress_label):
     config.logging.info("Compressing database file...")
     archived = shutil.make_archive(
         base_name=os.path.join(os.getcwd(), config.config["DEFAULT"]["UPLOAD_DIR"], "Modified_DB"), 
-        format="zip", 
+        format="zip",
         root_dir=os.path.join(os.getcwd(), config.config["DEFAULT"]["UPLOAD_DIR"]),
-        base_dir=db_file
+        base_dir=os.path.basename(db_file)
     )
     config.logging.debug(f"Database file size compressed from {os.path.getsize(db_file)} bytes to {os.path.getsize(archived)} bytes")
 
@@ -87,36 +87,50 @@ def main(db_file, app_progress_label):
             'name': 'debug.log',
             'mimeType': 'application/text',
         }
-    log_file_path = os.path.join(os.getcwd(), config.config["DEFAULT"]["LOG_FILE"])
+    log_file_path = os.path.join(os.path.dirname(__file__), config.config["DEFAULT"]["LOG_FILE"])
     log_media = MediaFileUpload(log_file_path, chunksize=1 * 1024 * 1024, mimetype='application/octet-stream', resumable=True)
     try:
         # Try uploading database file
         config.logging.info("Uploading database...")
-        app_progress_label["text"] = "Uploading database..."
+        if app_progress_label is not None:
+            app_progress_label["text"] = "Uploading database..."
+        else:
+            print("Uploading database...")
         if is_new_upload_db:
             db_file = service.files().create(body=db_file_metadata, media_body=db_media, fields='id')
         else:
             db_file = service.files().update(fileId=db_file_id, body=db_file_metadata, media_body=db_media, fields='id')
         response = None
         while response is None:
-            app_progress_label.master.update()
+            if app_progress_label is not None:
+                app_progress_label.master.update()
             status, response = db_file.next_chunk()
             if status:
-                app_progress_label["text"] = "Uploading database (%d%%)..." % int(status.progress() * 100)
+                if app_progress_label is not None:
+                    app_progress_label["text"] = "Uploading database (%d%%)..." % int(status.progress() * 100)
+                else:
+                    print("Uploading database (%d%%)..." % int(status.progress() * 100))
         uploaded_db_file_id = response["id"]
         # Try uploading log file
         config.logging.info("Uploading logs...")
-        app_progress_label["text"] = "Uploading logs..."
+        if app_progress_label is not None:
+            app_progress_label["text"] = "Uploading logs..."
+        else:
+            print("Uploading logs...")
         if is_new_upload_log:
             log_file = service.files().create(body=log_file_metadata, media_body=log_media, fields='id')
         else:
             log_file = service.files().update(fileId=log_file_id, body=log_file_metadata, media_body=log_media, fields='id')
         response = None
         while response is None:
-            app_progress_label.master.update()
+            if app_progress_label is not None:
+                app_progress_label.master.update()
             status, response = log_file.next_chunk()
             if status:
-                app_progress_label["text"] = "Uploading logs (%d%%)..." % int(status.progress() * 100)
+                if app_progress_label is not None:
+                    app_progress_label["text"] = "Uploading logs (%d%%)..." % int(status.progress() * 100)
+                else:
+                    print("Uploading logs (%d%%)..." % int(status.progress() * 100))
         uploaded_log_file_id = response["id"]
         # Log successful completion
         config.logging.info(f"Upload completed successfully! (db_file_id: {uploaded_db_file_id}, log_file_id, {uploaded_log_file_id})")
@@ -134,5 +148,5 @@ def main(db_file, app_progress_label):
         return {"status": False, "error": e}
 
 
-if __file__ == "__main__":
+if __name__ == "__main__":
     main()

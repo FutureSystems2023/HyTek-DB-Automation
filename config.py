@@ -26,3 +26,7 @@ logging.basicConfig(
 # Create uploads folder if not exists
 if not os.path.exists(os.path.join(os.getcwd(), config["DEFAULT"]["UPLOAD_DIR"])):
     os.mkdir(config["DEFAULT"]["UPLOAD_DIR"])
+
+# Create downloads folder if not exists
+if not os.path.exists(os.path.join(os.getcwd(), config["DEFAULT"]["DOWNLOAD_DIR"])):
+    os.mkdir(config["DEFAULT"]["DOWNLOAD_DIR"])

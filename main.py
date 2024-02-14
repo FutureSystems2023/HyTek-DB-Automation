@@ -91,7 +91,7 @@ try:
     app_status_lbl["text"] = "Uploading to Google Drive using Drive API..."
     app.update()
     upload_operations = uploadDB.main(destination_db_file, app_status_lbl)
-    # Show a pop-up message indicating successful completion. Else, dsiplay error.
+    # Show a pop-up message indicating successful completion. Else, display error.
     if upload_operations["status"] == True:
         messagebox.showinfo("Success", f"Upload successfully completed!")
     else:
